@@ -1,0 +1,10 @@
+# models/staging/sources.yml
+version: 2
+
+sources:
+  - name: raw_data
+    schema: public
+    database: WEATHER # 替换为你的 Snowflake 数据库名
+    tables:
+      - name: raw_weather_data
+        description: "原始天气数据表（由 Airflow 加载）"

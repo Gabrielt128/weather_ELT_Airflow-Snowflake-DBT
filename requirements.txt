@@ -1,0 +1,3 @@
+apache-airflow-providers-snowflake
+snowflake-snowpark-python
+openmeteo_requests
