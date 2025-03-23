@@ -4,7 +4,7 @@ version: 2
 sources:
   - name: raw_data
     schema: public
-    database: WEATHER # 替换为你的 Snowflake 数据库名
+    database: WEATHER
     tables:
-      - name: raw_weather_data
+      - name: raw_weather_data2
         description: "原始天气数据表（由 Airflow 加载）"

@@ -23,7 +23,9 @@ def weather_etl():
         sql="""
         CREATE TABLE IF NOT EXISTS raw_weather_data (
             date TIMESTAMP_NTZ,
-            apparent_temperature FLOAT
+            apparent_temperature FLOAT,
+            temperature_2m FLOAT,
+            precipitation FLOAT
         );
         """,
         conn_id="snowflake_connect",
@@ -31,7 +33,7 @@ def weather_etl():
 
     @task
     def weather_extract():
-        """从 Open-Meteo API 提取天气数据"""
+        """Extract from Open-Meteo API """
         import pandas as pd
         import openmeteo_requests
         
@@ -41,15 +43,13 @@ def weather_etl():
         params = {
             "latitude": 47.4984,
             "longitude": 19.0404,
-            "hourly": "apparent_temperature",
+            "hourly": ["apparent_temperature", "temperature_2m", "precipitation"],
             "forecast_days": 16
         }
         
-        # 获取数据
         responses = om.weather_api(url, params=params)
         response = responses[0]
         
-        # 解析数据
         hourly = response.Hourly()
         time_range = pd.date_range(
             start=pd.to_datetime(hourly.Time(), unit="s", utc=True),
@@ -58,32 +58,37 @@ def weather_etl():
             inclusive="left"
         )
         
-        # 转换为 DataFrame
         df = pd.DataFrame({
-            "date": time_range.strftime("%Y-%m-%d %H:%M:%S"),  # 转换为 Snowflake 兼容的格式
-            "apparent_temperature": hourly.Variables(0).ValuesAsNumpy()
+            "date": time_range.strftime("%Y-%m-%d %H:%M:%S"),  
+            "apparent_temperature": hourly.Variables(0).ValuesAsNumpy(),
+            "temperature_2m": hourly.Variables(1).ValuesAsNumpy(),
+            "precipitation": hourly.Variables(2).ValuesAsNumpy()
         })
         
         return df.to_dict('records')
 
     @task
     def weather_load(data: list):
-        """加载数据到 Snowflake"""
+        """load to Snowflake"""
         if not data:
             raise ValueError("No data to load")
         
-        # 生成批量插入 SQL
+        # values = ",".join([
+        #     f"('{row['date']}', {row['apparent_temperature']})" 
+        #     for row in data
+        # ])
+
         values = ",".join([
-            f"('{row['date']}', {row['apparent_temperature']})" 
+            f"('{row['date']}', {row['apparent_temperature']}, {row['temperature_2m']}, {row['precipitation']})" 
             for row in data
         ])
+
         
         sql = f"""
-        INSERT INTO raw_weather_data (date, apparent_temperature)
+        INSERT INTO raw_weather_data (date, apparent_temperature, temperature_2m, precipitation)
         VALUES {values};
         """
         
-        # 执行加载
         SQLExecuteQueryOperator(
             task_id="load_data",
             sql=sql,
