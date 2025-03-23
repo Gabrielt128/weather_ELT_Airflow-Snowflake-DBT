@@ -1,0 +1,10 @@
+# models/weatherETL/staging/sources.yml
+version: 2
+
+sources:
+  - name: raw_data
+    schema: weather_schema
+    database: WEATHER_DB
+    tables:
+      - name: raw_weather_data
+        description: "original raw weather data"
